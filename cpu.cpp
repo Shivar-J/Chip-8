@@ -1,4 +1,4 @@
-#include "cpu.hpp"
+#include "cpu.h"
 #include <fstream>
 
 const unsigned int FONTSET_SIZE = 80;
@@ -131,9 +131,29 @@ void Chip8::LoadROM(char const* filename)
 		delete[] buffer;
 	}
 }
-void Chip8::cycle()
+
+std::string Chip8::get_opcode_string(uint16_t opcode)
+{
+	std::stringstream ss;
+
+	uint8_t first = (opcode & 0xF000u) >> 12;
+	uint8_t second = (opcode & 0x0F00u) >> 8;
+	uint8_t third = (opcode & 0x00F0u) >> 4;
+	uint8_t fourth = (opcode & 0x000Fu);
+
+	ss << std::hex << std::uppercase << static_cast<int>(first) << static_cast<int>(second) << static_cast<int>(third) << static_cast<int>(fourth);
+
+	return ss.str();
+}
+
+void Chip8::cycle(std::vector<std::string>& opcode_history)
 {
 	opcode = (memory[pc] << 8) | memory[pc + 1];
+
+	opcode_history.push_back(get_opcode_string(opcode));
+
+	if (opcode_history.size() > 50)
+		opcode_history.erase(opcode_history.begin());
 
 	pc += 2;
 
@@ -144,6 +164,20 @@ void Chip8::cycle()
 
 	if (sound_timer > 0)
 		sound_timer--;
+}
+
+void Chip8::print_registers(std::vector<std::string>& register_info)
+{
+	register_info.clear();
+	register_info.push_back("PC: " + std::to_string(pc));
+	register_info.push_back("Index: " + std::to_string(index));
+	register_info.push_back("Stack: " + std::to_string(sp));
+	register_info.push_back("Delay Timer: " + std::to_string(delay_timer));
+	register_info.push_back("Sound Timer: " + std::to_string(sound_timer));
+
+	for (int i = 0; i < REGISTER_COUNT; i++) {
+		register_info.push_back("V" + std::to_string(i) + ": " + std::to_string(static_cast<int>(registers[i])));
+	}
 }
 
 void Chip8::OP_00E0()
@@ -489,4 +523,3 @@ void Chip8::OP_FX65()
 	for (uint8_t i = 0; i <= Vx; i++)
 		registers[i] = memory[index + i];
 }
-
